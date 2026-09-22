@@ -12,10 +12,13 @@
 // do tema: isso muda o resultado, e o resultado impresso é o requisito.
 //
 // As únicas cores que NÃO são literais fixas são as de negócio, injetadas via parâmetro:
-// appearance.* (contexts/settings, birthdays.appearance.*) e a cor de marca (tema ativo,
-// ThemeManifest.brandAesthetics.color desde T2 — docs/implementation-roadmap.md Fase 5, antes
-// vinha de contexts/settings) — ambas já eram configuráveis no fem-colaborador e continuam
-// sendo aqui.
+// appearance.* (contexts/settings, birthdays.appearance.*), incluindo appearance.brandColor —
+// a cor de marca do PDF é uma EXCEÇÃO DELIBERADA à regra geral de brand (desde T2,
+// docs/implementation-roadmap.md Fase 5, a cor de marca do site vem do tema ativo,
+// ThemeManifest.brandAesthetics.color): o PDF impresso não deve mudar toda vez que o tema do
+// site muda, então sua cor de marca é configurada só em admin/birthdays/appearance
+// (birthdays.appearance.brandColor), não herdada do tema. Ambas já eram configuráveis no
+// fem-colaborador e continuam sendo aqui.
 import type { BirthdayAppearanceSettings } from "../../shared/appearance";
 
 export type PrintBrandMode = "text" | "svg" | "png";

@@ -90,7 +90,7 @@ export default async function BirthdaysAdminPage() {
                 mode: aesthetics.mode,
                 logoUrl: brandConfig.logoUrl,
                 name: brandConfig.siteName,
-                color: aesthetics.color,
+                color: appearanceResult.data.brandColor,
               }}
               giftSvgMarkup={giftSvgMarkup}
             />

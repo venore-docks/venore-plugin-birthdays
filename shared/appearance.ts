@@ -15,6 +15,13 @@ export const BIRTHDAY_APPEARANCE_SETTINGS = {
   cardTextColor: { key: "birthdays.appearance.cardTextColor", defaultValue: "#F2F2EE", label: "Cor do texto do card" },
   dayTextColor: { key: "birthdays.appearance.dayTextColor", defaultValue: "#F2F2EE", label: "Cor do número do dia" },
   roleTextColor: { key: "birthdays.appearance.roleTextColor", defaultValue: "#0F8CA6", label: "Cor do cargo" },
+  // Único campo desta tela que não é cor de "quadro" (público/PDF) — é a cor de marca usada na
+  // impressão do PDF (buildBrandMarkup, features/print-birthdays/build-birthday-pdf-html.ts).
+  // Exceção deliberada: desde T2 (docs/implementation-roadmap.md Fase 5) a cor de marca em geral
+  // vem do tema ativo (ThemeManifest.brandAesthetics.color), mas o PDF é documento impresso, não
+  // interface temável — não deve mudar toda vez que o tema do site muda. Por isso aqui ela é
+  // configurável só nesta tela, não herdada do tema.
+  brandColor: { key: "birthdays.appearance.brandColor", defaultValue: "#143b52", label: "Cor da marca (PDF)" },
 } as const;
 
 export type BirthdayAppearanceField = keyof typeof BIRTHDAY_APPEARANCE_SETTINGS;
