@@ -109,17 +109,32 @@ export async function BirthdaysMonthListBlock({ block }: BlockRendererProps) {
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-caps text-muted-foreground sm:text-xs">
             {WEEKDAY_LABELS.map((label, index) => (
               // eslint-disable-next-line react/no-array-index-key -- rótulo fixo de 7 posições, sem identidade própria
-              <span key={index}>{label}</span>
+              <span key={index} className={index === 0 ? "text-warning" : undefined}>
+                {label}
+              </span>
             ))}
           </div>
           <div className="mt-1 grid grid-cols-7 gap-1">
             {calendarCells.map((cell, index) => {
+              // Coluna 0 é sempre domingo (WEEKDAY_LABELS começa em "D" e o padding inicial de
+              // buildCalendarCells alinha o dia 1 na coluna do seu dia-da-semana real) — mesma
+              // fonte de verdade do cabeçalho, sem recalcular data por célula.
+              const isSunday = index % 7 === 0;
+
               if (!cell) {
                 // eslint-disable-next-line react/no-array-index-key -- célula de preenchimento sem dado, posição é a identidade
                 return <div key={`pad-${index}`} aria-hidden="true" />;
               }
 
-              return <BirthdayCalendarDay key={cell.day} day={cell.day} birthdays={cell.birthdays} isToday={cell.day === today} />;
+              return (
+                <BirthdayCalendarDay
+                  key={cell.day}
+                  day={cell.day}
+                  birthdays={cell.birthdays}
+                  isToday={cell.day === today}
+                  isSunday={isSunday}
+                />
+              );
             })}
           </div>
         </div>

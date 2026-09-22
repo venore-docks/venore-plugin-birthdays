@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger, cn } from "@venore/plugin-sdk/ui";
+import { formatDisplayName } from "../shared/format-display-name";
 import type { PublicBirthdayView } from "../features/list-public-birthdays/types";
 
 // Balão fecha com um atraso curto (não no mouseleave imediato) pra tolerar o gap entre o botão do
@@ -13,10 +14,12 @@ export function BirthdayCalendarDay({
   day,
   birthdays,
   isToday,
+  isSunday,
 }: {
   day: number;
   birthdays: PublicBirthdayView[];
   isToday: boolean;
+  isSunday: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,7 +40,8 @@ export function BirthdayCalendarDay({
     return (
       <div
         className={cn(
-          "flex min-h-14 flex-col items-center justify-center rounded-md border border-transparent text-[11px] text-muted-foreground sm:min-h-16 sm:text-xs",
+          "flex min-h-14 flex-col items-start justify-start rounded-md border border-transparent p-1 text-left text-[11px] text-muted-foreground sm:min-h-16 sm:text-xs",
+          isSunday && "bg-warning-soft text-warning",
           isToday && "ring-2 ring-primary ring-offset-1 ring-offset-card",
         )}
       >
@@ -45,8 +49,6 @@ export function BirthdayCalendarDay({
       </div>
     );
   }
-
-  const [firstBirthday, ...otherBirthdays] = birthdays;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -59,14 +61,18 @@ export function BirthdayCalendarDay({
           }}
           onMouseLeave={scheduleClose}
           className={cn(
-            "flex min-h-14 w-full flex-col items-center justify-center gap-0.5 rounded-md border border-primary/40 bg-primary/10 p-1 text-center font-semibold text-primary ui-motion-base hover:bg-primary/15 sm:min-h-16",
+            "flex min-h-14 w-full flex-col items-start justify-start gap-0.5 rounded-md border border-primary/40 bg-primary/10 p-1 text-left font-semibold text-primary ui-motion-base hover:bg-primary/15 sm:min-h-16",
+            isSunday && "bg-warning-soft",
             isToday && "ring-2 ring-primary ring-offset-1 ring-offset-card",
           )}
         >
           <span className="text-[11px] leading-none sm:text-xs">{day}</span>
-          <span className="line-clamp-2 w-full break-words text-[9px] font-medium leading-tight sm:text-[10px]">
-            {firstBirthday!.fullName.split(" ")[0]}
-            {otherBirthdays.length > 0 && ` +${otherBirthdays.length}`}
+          <span className="flex w-full flex-col items-start gap-px">
+            {birthdays.map((birthday) => (
+              <span key={birthday.id} className="w-full truncate text-[9px] font-medium leading-tight sm:text-[10px]">
+                {formatDisplayName(birthday.fullName)}
+              </span>
+            ))}
           </span>
         </button>
       </PopoverTrigger>
@@ -75,7 +81,7 @@ export function BirthdayCalendarDay({
         <ul className="space-y-1.5">
           {birthdays.map((birthday) => (
             <li key={birthday.id}>
-              <p className="text-sm font-medium text-foreground">{birthday.fullName}</p>
+              <p className="text-sm font-medium text-foreground">{formatDisplayName(birthday.fullName)}</p>
               {birthday.role && <p className="text-xs text-muted-foreground">{birthday.role}</p>}
             </li>
           ))}
