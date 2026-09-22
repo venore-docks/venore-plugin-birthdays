@@ -1,6 +1,6 @@
 {
   "name": "@venore/plugin-birthdays",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Mural de aniversariantes com import CSV (plugin do Venore Docks).",
   "private": true,
   "type": "module",
