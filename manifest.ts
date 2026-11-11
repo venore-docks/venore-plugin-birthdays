@@ -36,5 +36,5 @@ export const birthdaysManifest: PluginManifest = {
   seeds: [
     { key: "example", label: "Dados de exemplo", description: "Seis aniversariantes distribuídos pelo ano." },
   ],
-  blocks: [{ key: "birthdays.month.list", label: "Aniversariantes — Lista do mês" }],
+  blocks: [{ key: "birthdays.month.list", label: "Aniversariantes — Próximos aniversários" }],
 };

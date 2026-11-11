@@ -1,12 +1,10 @@
 import { listPublicBirthdaysHandler as listPublicBirthdays } from "../features/list-public-birthdays/handler";
-import { DAYS_PER_MONTH, MONTH_LABELS } from "../shared/months";
-import type { PublicBirthdayView } from "../features/list-public-birthdays/types";
+import { formatDisplayName } from "../shared/format-display-name";
+import { MONTH_LABELS } from "../shared/months";
+import { relativeDayLabel, selectUpcomingBirthdays, todayInSaoPaulo } from "../shared/upcoming-birthdays";
 import type { BlockRendererProps } from "@venore/plugin-sdk";
 import { hasRichTextContent, renderRichTextContent, RICH_TEXT_INLINE_CLASSES } from "@venore/plugin-sdk/page-builder";
 import { cn } from "@venore/plugin-sdk/ui";
-import { BirthdayCalendarDay } from "./birthday-calendar-day";
-
-const WEEKDAY_LABELS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 function readString(data: Record<string, unknown>, key: string, fallback: string): string {
   const value = data[key];
@@ -18,37 +16,21 @@ function readLimit(data: Record<string, unknown>, fallback: number): number {
   return typeof value === "number" && value > 0 ? value : fallback;
 }
 
-type CalendarCell = { day: number; birthdays: PublicBirthdayView[] } | null;
-
-// Grade do mês corrente (não um calendário genérico de qualquer mês/ano): dias 1..N vêm de
-// DAYS_PER_MONTH (tolerante a fevereiro bissexto, sem ano na tabela birthdays — mesma regra de
-// shared/months.ts), só o dia-da-semana de alinhamento usa o ano real corrente.
-function buildCalendarCells(currentMonth: number, currentYear: number, birthdaysByDay: Map<number, PublicBirthdayView[]>): CalendarCell[] {
-  const daysInMonth = DAYS_PER_MONTH[currentMonth] ?? 31;
-  const firstWeekday = new Date(currentYear, currentMonth - 1, 1).getDay();
-
-  const cells: CalendarCell[] = [
-    ...Array.from({ length: firstWeekday }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, index) => {
-      const day = index + 1;
-      return { day, birthdays: birthdaysByDay.get(day) ?? [] };
-    }),
-  ];
-
-  while (cells.length % 7 !== 0) {
-    cells.push(null);
-  }
-
-  return cells;
+function monthAbbreviation(month: number): string {
+  return (MONTH_LABELS[month] ?? "").slice(0, 3).toLocaleUpperCase("pt-BR");
 }
 
+// Lista dos próximos aniversariantes (hoje em diante, janela de ~30 dias — ver
+// shared/upcoming-birthdays.ts), no lugar da grade de calendário. Só tokens shadcn: funciona em
+// tema claro/escuro e herda as cores do tema ativo. As cores de birthdays.appearance.* são do
+// quadro público/PDF e não se aplicam a este bloco.
 export async function BirthdaysMonthListBlock({ block }: BlockRendererProps) {
-  const title = readString(block.data, "title", "Aniversariantes do mês");
+  const title = readString(block.data, "title", "Aniversariantes");
   const description = block.data.description;
   const emptyMessage = hasRichTextContent(block.data.emptyMessage)
     ? block.data.emptyMessage
-    : "Não há aniversariantes cadastrados para este mês.";
-  const limit = readLimit(block.data, 12);
+    : "Não há aniversariantes cadastrados.";
+  const limit = readLimit(block.data, 8);
 
   const result = await listPublicBirthdays();
   // Handler é público (sem auth) — um erro aqui é de infraestrutura, não de permissão. Bloco some
@@ -57,88 +39,77 @@ export async function BirthdaysMonthListBlock({ block }: BlockRendererProps) {
     return null;
   }
 
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-  const today = now.getDate();
+  const upcoming = selectUpcomingBirthdays(result.data, todayInSaoPaulo(), { limit });
 
-  // "Próximo primeiro": hoje e quem ainda vai fazer aniversário este mês aparecem antes de quem já
-  // fez — achado da revisão de blocos desta sessão (antes só ordenava por dia, misturando quem já
-  // passou com quem ainda vem). MAX_DAYS_IN_MONTH (31) como deslocamento garante que o grupo "já
-  // passou" sempre vem depois do grupo "ainda vem", mantendo ordem crescente dentro de cada grupo.
-  // Usado só pra decidir QUEM entra no `limit` — a grade do calendário exibe esse conjunto já em
-  // ordem cronológica normal (dia crescente), não "próximo primeiro".
-  const MAX_DAYS_IN_MONTH = 31;
-  function rank(day: number): number {
-    return day >= today ? day - today : day - today + MAX_DAYS_IN_MONTH;
-  }
-
-  const monthBirthdays = result.data
-    .filter((birthday) => birthday.month === currentMonth)
-    .sort((a, b) => rank(a.day) - rank(b.day))
-    .slice(0, limit)
-    .sort((a, b) => a.day - b.day);
-
-  const birthdaysByDay = new Map<number, PublicBirthdayView[]>();
-  for (const birthday of monthBirthdays) {
-    const group = birthdaysByDay.get(birthday.day) ?? [];
-    group.push(birthday);
-    birthdaysByDay.set(birthday.day, group);
-  }
-
-  const calendarCells = buildCalendarCells(currentMonth, currentYear, birthdaysByDay);
+  const first = upcoming[0];
+  const last = upcoming[upcoming.length - 1];
+  const rangeLabel = first
+    ? first.occurrence.month === last.occurrence.month
+      ? (MONTH_LABELS[first.occurrence.month] ?? "")
+      : `${monthAbbreviation(first.occurrence.month)} – ${monthAbbreviation(last.occurrence.month)}`
+    : null;
 
   return (
-    <div className="rounded-panel border border-border bg-card p-4 sm:p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+    <section className="overflow-hidden rounded-panel border border-border bg-card shadow-panel">
+      <header className="flex items-start justify-between gap-3 border-b border-border p-4 sm:px-6 sm:py-5">
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold tracking-tight text-foreground">{title}</h3>
           {hasRichTextContent(description) && (
             <div className={cn("mt-1 text-sm text-muted-foreground", RICH_TEXT_INLINE_CLASSES)}>{renderRichTextContent(description)}</div>
           )}
         </div>
-        <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-          {MONTH_LABELS[currentMonth]}
-        </span>
-      </div>
+        {rangeLabel && (
+          <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">{rangeLabel}</span>
+        )}
+      </header>
 
-      {monthBirthdays.length === 0 ? (
-        <div className={cn("mt-4 text-sm text-muted-foreground", RICH_TEXT_INLINE_CLASSES)}>{renderRichTextContent(emptyMessage)}</div>
+      {upcoming.length === 0 ? (
+        <div className={cn("p-4 text-sm text-muted-foreground sm:px-6", RICH_TEXT_INLINE_CLASSES)}>{renderRichTextContent(emptyMessage)}</div>
       ) : (
-        <div className="mt-4">
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-caps text-muted-foreground sm:text-xs">
-            {WEEKDAY_LABELS.map((label, index) => (
-              // eslint-disable-next-line react/no-array-index-key -- rótulo fixo de 7 posições, sem identidade própria
-              <span key={index} className={index === 0 ? "text-warning" : undefined}>
-                {label}
-              </span>
-            ))}
-          </div>
-          <div className="mt-1 grid grid-cols-7 gap-1">
-            {calendarCells.map((cell, index) => {
-              // Coluna 0 é sempre domingo (WEEKDAY_LABELS começa em "D" e o padding inicial de
-              // buildCalendarCells alinha o dia 1 na coluna do seu dia-da-semana real) — mesma
-              // fonte de verdade do cabeçalho, sem recalcular data por célula.
-              const isSunday = index % 7 === 0;
+        <ul className="divide-y divide-border">
+          {upcoming.map((birthday) => {
+            const isToday = birthday.daysUntil === 0;
+            return (
+              <li
+                key={birthday.id}
+                className={cn("flex items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6", isToday && "bg-primary/10")}
+              >
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    "flex size-12 shrink-0 flex-col items-center justify-center rounded-xl leading-none",
+                    isToday ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
+                  )}
+                >
+                  <span className="text-lg font-semibold tabular-nums">{birthday.occurrence.day}</span>
+                  <span
+                    className={cn(
+                      "mt-0.5 text-[10px] font-medium tracking-caps",
+                      isToday ? "text-primary-foreground/80" : "text-muted-foreground",
+                    )}
+                  >
+                    {monthAbbreviation(birthday.occurrence.month)}
+                  </span>
+                </div>
 
-              if (!cell) {
-                // eslint-disable-next-line react/no-array-index-key -- célula de preenchimento sem dado, posição é a identidade
-                return <div key={`pad-${index}`} aria-hidden="true" />;
-              }
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{formatDisplayName(birthday.fullName)}</p>
+                  {birthday.role && <p className="truncate text-xs text-muted-foreground">{birthday.role}</p>}
+                </div>
 
-              return (
-                <BirthdayCalendarDay
-                  key={cell.day}
-                  day={cell.day}
-                  birthdays={cell.birthdays}
-                  isToday={cell.day === today}
-                  isSunday={isSunday}
-                />
-              );
-            })}
-          </div>
-        </div>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium",
+                    isToday ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {relativeDayLabel(birthday.daysUntil)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </div>
+    </section>
   );
 }

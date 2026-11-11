@@ -2,15 +2,15 @@ import type { BlockDefinition } from "@venore/plugin-sdk/cms";
 
 export const birthdaysMonthListBlockDefinition: BlockDefinition = {
   key: "birthdays.month.list",
-  label: "Aniversariantes — Lista do mês",
+  label: "Aniversariantes — Próximos aniversários",
   category: "birthdays",
   structure: "leaf",
   allowedInRoot: true,
   defaultData: {
-    title: "Aniversariantes do mês",
-    description: "Confira quem celebra aniversário neste mês.",
-    emptyMessage: "Não há aniversariantes cadastrados para este mês.",
-    limit: 12,
+    title: "Aniversariantes",
+    description: "Quem celebra aniversário nos próximos dias.",
+    emptyMessage: "Não há aniversariantes cadastrados.",
+    limit: 8,
   },
   editorFields: [
     { name: "title", type: "text", label: "Título" },
